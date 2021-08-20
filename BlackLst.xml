@@ -73,8 +73,7 @@
 
 	<switch var="$DiscDest_len">
 		<case equal="0"><!-- no default disc destination, call is terminated  -->
-				<pbx-disc/>
-		</case>
+				<pbx-disc cause="18"/>		</case>
 		<case greater="0"><!-- call trasfered to default disc destination  -->
 			<pbx-xfer e164="$DiscDest" />
 			<pbx-disc/>     
@@ -198,4 +197,4 @@
 </function> 
  
 </voicemail>
-<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,17,0 (C) innovaphone AG 2010-2017 -->
+<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,18,0 (C) innovaphone AG 2010-2018 -->

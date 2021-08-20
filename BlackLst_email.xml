@@ -21,8 +21,7 @@
         <assign out="$to" value=""/>   <!-- doesn't seem to be an email address -->
     </function>
 	
-	<function define="QueryEmail">
-	
+	<function define="QueryEmail">	
 		<store-cookie root="" name="Email.txt" out="$custom_email"/> <!-- retrieve custom email from Email.txt -->
 		<switch var="$custom_email">
 			<case not-equal="">
@@ -36,47 +35,84 @@
 		</switch>
 	</function>
 	
-	<function define="CreateNumbersList">
+	<function define="CreateNumbersList"> <!-- reads files in BL_Numbers folder and creates attachments files with max 20 numbers -->
 		<store-get-msgcount root="BL_Numbers" out-count="$number_count"/>
 		<assign out="$numbers_list" value=""/>
-		<assign out="$numbers_line" value=""/>
-		<assign out="$new_line" value="&#x0d;&#x0a;" />
+		<assign out="$numbers_line" value=""/>		
+		<assign out="$new_line" value="&#x0d;&#x0a;" /> <!-- special syntax for new line in a text body -->
+		<assign out="$c1" value=""/>
+		<assign out="$c2" value=""/>
+		<assign out="$c_limit" value="20" /> <!-- max number of lines the voicemail can handle -->
+		<assign out="$list_loop_end" value="false" />
 		
 		<store-getnext root="BL_Numbers" out-handle="$handle" out-url="$BL_number"/>
 			<while cond="$BL_number">
+				<add value="$c1" value2="1" out="$c1"/>
 				<store-split url="$BL_number" out-file="$BL_number" />
 				<lib-strcat out-string="$numbers_line" string="$BL_number" string2="$new_line"/>
 				<lib-strcat out-string="$numbers_list" string="$numbers_list" string2="$numbers_line"/>
+				<switch var="$c1">
+					<case equal="$c_limit">
+						<add value="$c2" value2="1" out="$c2"/>
+						<call name="CreateAttachmentFile" />
+						<assign out="$c1" value=""/>
+						<assign out="$numbers_list" value=""/>
+						<assign out="$numbers_line" value=""/>
+					</case>
+				</switch>
 				<store-getnext root="BL_Numbers" handle="$handle" out-url="$BL_number"/>
 			</while>
+			<assign out="$list_loop_end" value="true" /> <!-- set variable to true and create the last file when less than 20 number remains-->
+			<if cond="$list_loop_end">
+					<add value="$c2" value2="1" out="$c2"/>
+					<call name="CreateAttachmentFile" />
+			</if>
+
 
 	</function>
-
+	<function define="CreateAttachmentFile">
+		<assign out="$attachment" value=""/>
+		<lib-strcat out-string="$attachment" string="Blacklisted_numbers_" string2="$c2"/>
+		<lib-strcat out-string="$attachment" string="$attachment" string2=".txt"/>
+		<store-cookie root="Attachments" name="$attachment" value="$numbers_list"/>
+	</function>
 	
     <function define="Main">
-                <call name="QueryEmail" />
-				<call name="CreateNumbersList" />
-                <if cond="$to">
-					
-					<lib-strcat out-string="$BL_subject" string="$number_count" string2=" numbers in your blacklist"/>
-                    <assign out="$from" value="$to"/>    <!--from email = to address by default-->
-                    <assign out="$subject" value="$BL_subject"/>
-                    <assign out="$body" value="$numbers_list"/> <!-- lista di numeri: body=name:%0D%0Aemail: -->
-                    <assign out="$server" value=""/>     <!--optional, outgoing smtp server-->
-                    <assign out="$user" value=""/>       <!--optional, authentication info-->
-                    <assign out="$password" value=""/>   <!--optional, authentication info-->
+		<call name="QueryEmail" />
+		<call name="CreateNumbersList" />
+		
+		<if cond="$to">
+			<store-get-msgcount root="Attachments" out-count="$attach_count"/>
+			<store-getnext root="Attachments" out-handle="$handle" out-url="$attach_file"/>
+			<while cond="$attach_file">
+				<add value="$c3" value2="1" out="$c3"/>
+				<lib-strcat out-string="$BL_subject" string="$number_count" string2=" numbers in your blacklist - message "/>
+				<lib-strcat out-string="$BL_subject" string="$BL_subject" string2="$c3"/>
+				<lib-strcat out-string="$BL_subject" string="$BL_subject" string2=" of "/>
+				<lib-strcat out-string="$BL_subject" string="$BL_subject" string2="$attach_count"/>
 
-                    <assign out="$file" value=""/>       <!-- <assign out="$file" value="$vm"/> experimental -->
+				
+				<assign out="$from" value="$to"/>    <!--from email = to address by default-->
+				<assign out="$subject" value="$BL_subject"/>
+			   <!-- <assign out="$body" value="$numbers_list"/>  lista di numeri: body=name:%0D%0Aemail: -->
+				<assign out="$server" value=""/>     <!--optional, outgoing smtp server-->
+				<assign out="$user" value=""/>       <!--optional, authentication info-->
+				<assign out="$password" value=""/>   <!--optional, authentication info-->
 
-                        <!--Now send the email-->
-					<assign out="$exec-err" value="0"/>
-                    <exec url="mailto:$to?from=$to&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;pwd=$password&amp;file=$file" out-error="$exec-err"/>
-					<if cond="$exec-err">
-						<!-- 2nd try -->
-						<exec url="mailto:$to?from=$to&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;pwd=$password&amp;file=$file"/>
-					</if>
-                </if>
-    </function>
+				<assign out="$file" value="$attach_file"/>       <!-- <assign out="$file" value="$vm"/> experimental -->
+					<!--Now send the email-->
+				<assign out="$exec-err" value="0"/>
+				<exec url="mailto:$to?from=$to&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;pwd=$password&amp;file=$file" out-error="$exec-err"/>
+				<if cond="$exec-err">
+					<!-- 2nd try -->
+					<exec url="mailto:$to?from=$to&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;pwd=$password&amp;file=$file"/>
+				</if>
+				
+				<store-del url="$attach_file"/>
+				<store-getnext root="Attachments" handle="$handle" out-url="$attach_file"/>
+			</while>
+		</if>
+	</function>
 </voicemail>
 
-<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,17,0 (C) innovaphone AG 2010-2017 -->
+<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,18,0 (C) innovaphone AG 2010-2018 -->
