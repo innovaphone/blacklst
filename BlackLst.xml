@@ -34,7 +34,7 @@
 <!-- ADDS CGPN TO BLACKLIST if call is transferred to ADD2BLACKLIST OBJ. -->
 <function define="Add2BL">	
 	<if cond="$leg2-name">
-		<store-cookie root="BL_Numbers" name="$cgpn" value=""/>
+		<store-cookie root="BL_Numbers" name="$cgpn" value="."/>
 		<pbx-disc/>
 	</if>
 
@@ -46,12 +46,12 @@
 	<lib-strlen out="$cgpn_len" string="$cgpn"/>
 	
 	<switch var="$cgpn_len">
-		<case greater="$IntExtLen">
+		<case greater="$MaxIntExtLen">
 			<assign out="$call_type" value="external"/>
 		</case>
-		<case equal="$IntExtLen">
-			<assign out="$call_type" value="internal"/>
-		</case>
+		<case less="$MinIntExtLen">
+			<assign out="$call_type" value="external"/>
+		</case>		<default>				<assign out="$call_type" value="internal"/>		</default>
 	</switch>   
 
  </function> 
@@ -145,12 +145,26 @@
             <case equal="#">
                 <switch var="$file_check_stat">
                     <case equal="2"> <!-- ====== number not found ===== -->
-                       	<store-cookie root="BL_Numbers" name="$usr_number" value=""/>
-                        <assign out="$usr_number_ok" value="true"/>
+                    	<switch var="$menu_choice">
+                    		<case equal="add"> <!-- create number entry only if arriving from menu 1  -->
+		                       	<store-cookie root="BL_Numbers" name="$usr_number" value="."/>
+		                        <assign out="$usr_number_ok" value="true"/>
+		                    </case>
+		                    <case equal="rem">
+		                    	<pbx-disc />
+		                    </case>
+		                </switch>
                     </case>
                     <case equal="0"> <!-- ====== number found ===== -->
-                       	<store-del root="BL_Numbers" name="$usr_number"/>
-                        <assign out="$usr_number_ok" value="true"/>
+                    <switch var="$menu_choice">
+                    		<case equal="rem"> <!-- delete number entry only if arriving from menu 2  -->
+		                       	<store-del root="BL_Numbers" name="$usr_number"/>
+		                        <assign out="$usr_number_ok" value="true"/>
+                        </case>
+		                    <case equal="add">
+		                    	<pbx-disc />
+		                    </case>
+		                </switch>
                     </case>
                 </switch>
             </case>
@@ -196,10 +210,9 @@
 	
 	<assign out="$legit_caller" value="false" />
 	
- <!-- retrieve internal extensions number lenght -->
-	<store-cookie root="" name="IntExtLen.txt" out="$IntExtLen"/>
-
-<!-- retrieve Trunk prefix -->
+ <!-- retrieve min/max internal extensions number lenght -->
+	<store-cookie root="" name="MinIntExtLen.txt" out="$MinIntExtLen"/>
+	<store-cookie root="" name="MaxIntExtLen.txt" out="$MaxIntExtLen"/><!-- retrieve Trunk prefix -->
 	<store-cookie root="" name="PrefixIN.txt" out="$TrunkCode"/>
 	
  <!-- retrieve default forwarding destination -->
@@ -233,4 +246,4 @@
 </voicemail>
 <!-- Auto Call-Back wiki-src/xml/AutoCallBack 1,0,0,0 (C) innovaphone AG 2010-2014 -->
 
-<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,0,0 (C) innovaphone AG 2010-2017 -->
+<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,15,0 (C) innovaphone AG 2010-2017 -->
