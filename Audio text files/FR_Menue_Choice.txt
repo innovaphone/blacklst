@@ -1,0 +1,1 @@
+Taper 1 pour ajouter un numéro dans la liste noire ou taper 2 pour supprimer un numéro.

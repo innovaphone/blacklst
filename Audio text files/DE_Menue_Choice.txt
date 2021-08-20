@@ -1,0 +1,1 @@
+Wählen Sie eins, um eine neue Nummer zu sperren, oder zwei, um eine vorhandene Nummer zu entsperren.

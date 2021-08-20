@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<voicemail>
+<!-- innovaphone BLACKLIST SERVICE with DDI(Direct Dial In) == innovaphone AG V12.00 AZA 2017 -->
+
+<!-- Transfer to default destination defined inside Default_OK.txt file -->
+
+ <function define="DefTrans">
+	<pbx-xfer e164="$DefDest" />
+	<pbx-disc/>     
+ </function>
+
+<!-- Transfers to DDI destination -->
+
+  <function define="DDI_Trans">
+	<pbx-xfer e164="$cdpn" />
+	<pbx-disc/>     
+ </function>
+
+<!-- Verifies if the calling party composed a DDI number, if there is DDI the call is forwarded to that specific extension otherwise to the Default destination -->
+ <function define="Verify_DDI">
+
+ 	<pbx-finduser-e164 e164="$cdpn" out-cn="$DDI_user"/>
+
+ 		<switch var="$DDI_user">
+ 			<case equal="">
+				<call name="DefTrans" />
+			</case>
+			<case not-equal="">
+				<call name="DDI_Trans" />
+			</case>
+ 		</switch>
+ </function>
+ 
+<!-- ADDS CGPN TO BLACKLIST if call is transferred to ADD2BLACKLIST OBJ. -->
+<function define="Add2BL">	
+	<if cond="$leg2-name">
+		<store-cookie root="BL_Numbers" name="$cgpn" value=""/>
+		<pbx-disc/>
+	</if>
+
+</function> 
+
+ 
+<!-- CHECKS IF CGPN INTERNAL OR EXTERNAL -->
+ <function define="CheckCGPN">
+	<lib-strlen out="$cgpn_len" string="$cgpn"/>
+	
+	<switch var="$cgpn_len">
+		<case greater="$IntExtLen">
+			<assign out="$call_type" value="external"/>
+		</case>
+		<case equal="$IntExtLen">
+			<assign out="$call_type" value="internal"/>
+		</case>
+	</switch>   
+
+ </function> 
+ 
+ 
+<!-- CHECKS IF CGPN IS BLACKLISTED -->
+ <function define="CheckBL">
+	<store-getstat root="BL_Numbers/" name="$cgpn" out-error="$error"/>
+
+	<switch var="$error">
+		<case equal="0"><!-- number is blacklisted -->
+			<call name="BL_Caller" />	
+		</case>
+		<case equal="2">
+		<assign out="$legit_caller" value="true" />
+		<return />
+		</case>
+	</switch>   
+ </function>
+
+ 
+<!-- HANDLES BLACKLISTED CALLS -->
+ <function define="BL_Caller">
+ 
+ 	<!-- checks if there is a Default Disc Destination for blacklisted caller -->
+	<lib-strlen out="$DiscDest_len" string="$DiscDest"/>
+
+	<switch var="$DiscDest_len">
+		<case equal="0"><!-- no default disc destination, call is terminated  -->
+				<pbx-disc/>
+		</case>
+		<case greater="0"><!-- call trasfered to default disc destination  -->
+			<pbx-xfer e164="$DiscDest" />
+			<pbx-disc/>     
+		</case>
+	</switch>   
+
+ </function>
+ 
+ <!-- USER MENU: Add/Remove numbers to/from Blacklist -->
+ <function define="UserMenu">
+    <assign out="$menu_dtmf" value=""/>
+    <assign out="$proceed" value="false"/>
+      	
+ 	<event type="dtmf" block="false">
+		<pbx-getdtmfdigit out-dtmf="$menu_dtmf" />
+  	       	
+    <switch var="$menu_dtmf">
+		<case equal="1">
+    			<assign out="$proceed" value="true"/>
+    			<assign out="$menu_choice" value="add"/>
+				<call name="CollectDigits" />
+		</case>
+		<case equal="2">
+    			<assign out="$proceed" value="true"/>
+    			<assign out="$menu_choice" value="rem"/>
+				<call name="CollectDigits" />
+		</case>
+		<case greater="2">
+				<call name="UserMenu" />
+		</case>
+		<case equal="0">
+				<call name="UserMenu" />
+		</case>
+	 </switch>
+	</event>
+	
+ 	<store-get root="Audio" name="$Main_Menu" out-url="$play_menu" />
+       	<pbx-prompt url="$play_menu" repeat="false"/>
+       	
+	<while notcond="$proceed">
+        <!-- Silence. 30 Seconds -->
+        <store-get root="" name="silence.$coder" out-url="$play_silence" />
+        <pbx-prompt url="$play_silence" sec="30" repeat="true"/>
+    </while>
+ </function>
+
+ 
+ <!-- COLLECT DTMF DIGITS -->
+ 
+ <function define="CollectDigits">
+    <assign out="$usr_number" value=""/>
+    <assign out="$usr_number_ok" value="false"/>
+    <assign out="$usr_dtmf" value=""/>
+
+
+    <event type="dtmf" block="false">
+        <assign out="$usr_number_timeout" value="false"/>
+        <pbx-getdtmfdigit out-dtmf="$usr_dtmf" />
+        <switch var="$usr_dtmf">
+            <case equal="#">
+                <switch var="$file_check_stat">
+                    <case equal="2"> <!-- ====== number not found ===== -->
+                       	<store-cookie root="BL_Numbers" name="$usr_number" value=""/>
+                        <assign out="$usr_number_ok" value="true"/>
+                    </case>
+                    <case equal="0"> <!-- ====== number found ===== -->
+                       	<store-del root="BL_Numbers" name="$usr_number"/>
+                        <assign out="$usr_number_ok" value="true"/>
+                    </case>
+                </switch>
+            </case>
+        </switch>
+        <lib-strcat string="$usr_number" string2="$usr_dtmf" out-string="$usr_number" />
+        <lib-strlen string="$usr_number" out="$len-usr_number" />
+        <store-getstat root="BL_Numbers" name="$usr_number" out-error="$file_check_stat"/>
+    </event>
+    <switch var="$menu_choice">
+    	<case equal="add">
+				<store-get root="Audio" name="$Add_Menu" out-url="$play_opt_1" />
+			    <pbx-prompt url="$play_opt_1" />
+		</case>
+		<case equal="rem">
+				<store-get root="Audio" name="$Rem_Menu" out-url="$play_opt_2" />
+			    <pbx-prompt url="$play_opt_2" />
+		</case>
+	</switch>
+      
+    <while notcond="$usr_number_ok">
+                <!-- Silence. 30 Seconds -->
+            <store-get root="" name="silence.$coder" out-url="$play_silence" />
+            <pbx-prompt url="$play_silence" sec="30" repeat="true"/>
+    </while>
+    <if cond="$usr_number_ok">
+    	<pbx-disc />
+    </if>
+</function>
+
+
+
+ <function define="Main">
+ <!-- check Language -->
+	<store-cookie root="" name="Language.txt" out="$Lang"/>
+	
+ <!-- localize announcement files -->
+	<lib-strcat out-string="$Main_Menu" string="$Lang" string2="_Menu_Choice.$coder"/>
+	<lib-strcat out-string="$Add_Menu" string="$Lang" string2="_Add_to_BL.$coder"/>
+	<lib-strcat out-string="$Rem_Menu" string="$Lang" string2="_Remove_from_BL.$coder"/>
+	
+ <!-- retrieve CGPN and CDPN -->
+	<pbx-getcallinfo out-cgpn="$cgpn" out-cdpn="$cdpn" out-leg2="$leg2" out-leg2-name="$leg2-name" />
+	
+	<assign out="$legit_caller" value="false" />
+	
+ <!-- retrieve internal extensions number lenght -->
+	<store-cookie root="" name="IntExtLen.txt" out="$IntExtLen"/>
+
+<!-- retrieve Trunk prefix -->
+	<store-cookie root="" name="PrefixIN.txt" out="$TrunkCode"/>
+	
+ <!-- retrieve default forwarding destination -->
+	<store-cookie root="" name="Default_OK.txt" out="$DefDest"/>
+	
+ <!-- retrieve default forwarding destination for blacklised calls -->
+	<store-cookie root="" name="Default_BL.txt" out="$DiscDest"/>
+
+<!-- verify if call is transferred from ADD2BLACKLIST -->
+	<call name="Add2BL" />
+
+<!-- verify if CGPN is internal or external -->
+	<call name="CheckCGPN" />
+
+	<switch var="$call_type">
+	<!-- if the CGPN is internal the caller has access to Black List menu options -->
+		<case equal="internal">
+			<call name="UserMenu" />
+		</case>
+	<!-- if the CGPN is external the caller will be checked against Black List entries -->
+		<case equal="external">
+			<call name="CheckBL" />
+		</case>
+	</switch>  	
+	<!-- if the caller is legit the call will be transfered to DDI or Default destination -->
+	<if cond="$legit_caller">
+		<call name="Verify_DDI" />
+	</if>
+</function> 
+ 
+</voicemail>
+<!-- Auto Call-Back wiki-src/xml/AutoCallBack 1,0,0,0 (C) innovaphone AG 2010-2014 -->
+
+<!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,0,0 (C) innovaphone AG 2010-2017 -->
