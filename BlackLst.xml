@@ -1,17 +1,40 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<voicemail>
+<?xml version="1.0" encoding="utf-8" ?>
+
+<voicemail>
+
 <!-- innovaphone BLACKLIST SERVICE with DDI(Direct Dial In) == innovaphone AG V12.00 AZA 2017 -->
-<function define="CheckEmailService">	<switch var="$emailcode">		<case not-equal="">			<assign out="$email_BL_numbers" value="true" />		</case>	</switch></function><function define="SendEmail">	<store-getstat root="" name="$email_script" out-error="$error"/>	<switch var="$error">		<case equal="0">			<exec url="$email_script"/>		</case>	</switch></function>
+
+<function define="CheckEmailService">
+	<switch var="$emailcode">
+		<case not-equal="">
+			<assign out="$email_BL_numbers" value="true" />
+		</case>
+	</switch>
+</function>
+
+<function define="SendEmail">
+	<store-getstat root="" name="$email_script" out-error="$error"/>
+	<switch var="$error">
+		<case equal="0">
+			<exec url="$email_script"/>
+		</case>
+	</switch>
+</function>
+
 <!-- Transfer to default destination defined inside Default_OK.txt file -->
  <function define="DefTrans">
 	<pbx-xfer e164="$DefDest" />
 	<pbx-disc/>     
- </function>
+ </function>
+
+
 <!-- Transfers to DDI destination -->
   <function define="DDI_Trans">
 	<pbx-xfer e164="$cdpn" />
 	<pbx-disc/>     
- </function>
+ </function>
+
+
 <!-- Verifies if the calling party composed a DDI number, if there is DDI the call is forwarded to that specific extension otherwise to the Default destination -->
  <function define="Verify_DDI">
  	<pbx-finduser-e164 e164="$cdpn" out-cn="$DDI_user"/>
@@ -23,7 +46,8 @@
 				<call name="DDI_Trans" />
 			</case>
  		</switch>
- </function>
+ </function>
+
  
 <!-- ADDS CGPN TO BLACKLIST if call is transferred to ADD2BLACKLIST OBJ. -->
 <function define="Add2BL">	
@@ -43,14 +67,19 @@
 		</case>
 		<case less="$MinIntExtLen">
 			<assign out="$call_type" value="external"/>
-		</case>		<default>				<assign out="$call_type" value="internal"/>		</default>
+		</case>
+		<default>
+				<assign out="$call_type" value="internal"/>
+		</default>
 	</switch>   
 
  </function> 
  
  
-<!-- CHECKS IF CGPN IS BLACKLISTED -->
- <function define="CheckBL">
+<!-- CHECKS IF CGPN IS BLACKLISTED -->
+
+ <function define="CheckBL">
+
 	<store-getstat root="BL_Numbers/" name="$cgpn" out-error="$error"/>
 
 	<switch var="$error">
@@ -61,8 +90,10 @@
 		<assign out="$legit_caller" value="true" />
 		<return />
 		</case>
-	</switch>   
- </function>
+	</switch>   
+
+ </function>
+
 
  
 <!-- HANDLES BLACKLISTED CALLS -->
@@ -73,7 +104,8 @@
 
 	<switch var="$DiscDest_len">
 		<case equal="0"><!-- no default disc destination, call is terminated  -->
-				<pbx-disc cause="18"/>		</case>
+				<pbx-disc cause="16"/>
+		</case>
 		<case greater="0"><!-- call trasfered to default disc destination  -->
 			<pbx-xfer e164="$DiscDest" />
 			<pbx-disc/>     
@@ -83,8 +115,58 @@
  </function>
  
  <!-- USER MENU: Add/Remove numbers to/from Blacklist -->
- <function define="UserMenu">	<assign out="$digits" value=""/>
-    <assign out="$menu_dtmf" value=""/>    <assign out="$proceed" value="false"/>	<event type="dtmf" block="false">	<pbx-getdtmfdigit out-dtmf="$digits" />	<lib-strcat string="$menu_dtmf" string2="$digits" out-string="$menu_dtmf" />		<if cond="$email_BL_numbers">		<switch var="$menu_dtmf">			<case equal="$emailcode">				<call name="SendEmail" />				<pbx-disc />			</case>			<case equal="1">					<assign out="$proceed" value="true"/>					<assign out="$menu_choice" value="add"/>					<call name="CollectDigits" />			</case>			<case equal="2">					<assign out="$proceed" value="true"/>					<assign out="$menu_choice" value="rem"/>					<call name="CollectDigits" />			</case>			<case greater="2">				<call name="UserMenu" />			</case>			<case equal="0">				<call name="UserMenu" />			</case>		 </switch>	</if>		<if notcond="$email_BL_numbers">		<switch var="$menu_dtmf">			<case equal="1">					<assign out="$proceed" value="true"/>					<assign out="$menu_choice" value="add"/>					<call name="CollectDigits" />			</case>			<case equal="2">					<assign out="$proceed" value="true"/>					<assign out="$menu_choice" value="rem"/>					<call name="CollectDigits" />			</case>			<default>				<call name="UserMenu" />			</default>		 </switch>	</if>		</event>
+ <function define="UserMenu">
+	<assign out="$digits" value=""/>
+    <assign out="$menu_dtmf" value=""/>
+    <assign out="$proceed" value="false"/>
+	<event type="dtmf" block="false">
+	<pbx-getdtmfdigit out-dtmf="$digits" />
+	<lib-strcat string="$menu_dtmf" string2="$digits" out-string="$menu_dtmf" />
+	
+	<if cond="$email_BL_numbers">
+		<switch var="$menu_dtmf">
+			<case equal="$emailcode">
+				<call name="SendEmail" />
+				<pbx-disc />
+			</case>
+			<case equal="1">
+					<assign out="$proceed" value="true"/>
+					<assign out="$menu_choice" value="add"/>
+					<call name="CollectDigits" />
+			</case>
+			<case equal="2">
+					<assign out="$proceed" value="true"/>
+					<assign out="$menu_choice" value="rem"/>
+					<call name="CollectDigits" />
+			</case>
+			<case greater="2">
+				<call name="UserMenu" />
+			</case>
+			<case equal="0">
+				<call name="UserMenu" />
+			</case>
+		 </switch>
+	</if>
+	
+	<if notcond="$email_BL_numbers">
+		<switch var="$menu_dtmf">
+			<case equal="1">
+					<assign out="$proceed" value="true"/>
+					<assign out="$menu_choice" value="add"/>
+					<call name="CollectDigits" />
+			</case>
+			<case equal="2">
+					<assign out="$proceed" value="true"/>
+					<assign out="$menu_choice" value="rem"/>
+					<call name="CollectDigits" />
+			</case>
+			<default>
+				<call name="UserMenu" />
+			</default>
+		 </switch>
+	</if>
+	
+	</event>
  	<store-get root="Audio" name="$Main_Menu" out-url="$play_menu" />
 	<pbx-prompt url="$play_menu" repeat="false"/>
        	
@@ -161,9 +243,13 @@
 </function>
 
 
-
+
+
  <function define="Main">
-  <!-- retrieve CGPN and CDPN -->	<pbx-getcallinfo out-cgpn="$cgpn" out-cdpn="$cdpn" out-leg2="$leg2" out-leg2-name="$leg2-name" />  <!-- check Language -->
+  <!-- retrieve CGPN and CDPN -->
+	<pbx-getcallinfo out-cgpn="$cgpn" out-cdpn="$cdpn" out-leg2="$leg2" out-leg2-name="$leg2-name" />
+ 
+ <!-- check Language -->
 	<store-cookie root="" name="Language.txt" out="$Lang"/>
 	
  <!-- localize announcement files -->
@@ -173,7 +259,16 @@
 	
  <!-- retrieve min/max internal extensions number lenght -->
 	<store-cookie root="" name="MinIntExtLen.txt" out="$MinIntExtLen"/>
-	<store-cookie root="" name="MaxIntExtLen.txt" out="$MaxIntExtLen"/>	<store-cookie root="" name="PrefixIN.txt" out="$TrunkCode"/> <!-- retrieve Trunk prefix -->	<store-cookie root="" name="Default_OK.txt" out="$DefDest"/>  <!-- retrieve default forwarding destination -->	<store-cookie root="" name="Default_BL.txt" out="$DiscDest"/>  <!-- retrieve default forwarding destination for blacklised calls -->	<store-cookie root="" name="Email_Code.txt" out="$emailcode"/> <!-- retrieve Email Code for Email service from Email_Code.txt-->	<assign out="$email_BL_numbers" value="false" /> <!-- Email service disabled at startup -->    <store-get root="" name="BlackLst_email.xml" out-url="$email_script" /> <!-- path to BlackLst_email.xml -->	<assign out="$legit_caller" value="false" /> <!-- caller is not legit yet at startup -->
+	<store-cookie root="" name="MaxIntExtLen.txt" out="$MaxIntExtLen"/>
+
+	<store-cookie root="" name="PrefixIN.txt" out="$TrunkCode"/> <!-- retrieve Trunk prefix -->
+	<store-cookie root="" name="Default_OK.txt" out="$DefDest"/>  <!-- retrieve default forwarding destination -->
+	<store-cookie root="" name="Default_BL.txt" out="$DiscDest"/>  <!-- retrieve default forwarding destination for blacklised calls -->
+	<store-cookie root="" name="Email_Code.txt" out="$emailcode"/> <!-- retrieve Email Code for Email service from Email_Code.txt-->
+	<assign out="$email_BL_numbers" value="false" /> <!-- Email service disabled at startup -->
+    <store-get root="" name="BlackLst_email.xml" out-url="$email_script" /> <!-- path to BlackLst_email.xml -->
+	<assign out="$legit_caller" value="false" /> <!-- caller is not legit yet at startup -->
+
 <!-- verify if call is transferred from ADD2BLACKLIST -->
 	<call name="Add2BL" />
 
@@ -182,7 +277,9 @@
 
 	<switch var="$call_type">
 	<!-- if the CGPN is internal the caller has access to Black List menu options -->
-		<case equal="internal">			<pbx-finduser-e164 e164="$cgpn" out-cn="$cn_obj" /> 	<!-- find calling user only if caller is internal -->					<call name="CheckEmailService" />
+		<case equal="internal">
+			<pbx-finduser-e164 e164="$cgpn" out-cn="$cn_obj" /> 	<!-- find calling user only if caller is internal -->		
+			<call name="CheckEmailService" />
 			<call name="UserMenu" />
 		</case>
 	<!-- if the CGPN is external the caller will be checked against Black List entries -->
@@ -196,5 +293,6 @@
 	</if>
 </function> 
  
-</voicemail>
+</voicemail>
+
 <!-- Black List Service XML Script For Incoming Calls wiki-src/xml/BlackLst 1,0,18,0 (C) innovaphone AG 2010-2018 -->
