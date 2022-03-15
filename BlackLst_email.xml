@@ -90,24 +90,46 @@
 				<lib-strcat out-string="$BL_subject" string="$BL_subject" string2="$c3"/>
 				<lib-strcat out-string="$BL_subject" string="$BL_subject" string2=" of "/>
 				<lib-strcat out-string="$BL_subject" string="$BL_subject" string2="$attach_count"/>
-
-				
-				<assign out="$from" value="$to"/>    <!--from email = to address by default-->
 				<assign out="$subject" value="$BL_subject"/>
-			   <!-- <assign out="$body" value="$numbers_list"/>  lista di numeri: body=name:%0D%0Aemail: -->
+				<!-- <assign out="$body" value="$numbers_list"/>  lista di numeri: body=name:%0D%0Aemail: -->
+
+				<!-- init legacy e-mail setup with static configuration pre V13r1 -->
+				<assign out="$from" value="$to"/>    <!--from email = to address by default-->
 				<assign out="$server" value=""/>     <!--optional, outgoing smtp server-->
 				<assign out="$user" value=""/>       <!--optional, authentication info-->
 				<assign out="$password" value=""/>   <!--optional, authentication info-->
 
-				<assign out="$file" value="$attach_file"/>       <!-- <assign out="$file" value="$vm"/> experimental -->
-					<!--Now send the email-->
-				<assign out="$exec-err" value="0"/>
-				<exec url="mailto:$to?from=$to&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;pwd=$password&amp;file=$file" out-error="$exec-err"/>
+				<!-- V13r1 and up, read static config from "PBX/Config/Authentication/Email Verification" and overwrite static values -->
+				<!-- http://wiki.innovaphone.com/index.php?title=Howto:Send_Email_MWI_Notification_From_The_innovaphone_Voicemail#Configure_the_SMTP_Agent.2C_Firmware_Version_13r1 -->
+				<if cond="$_pbx_auth_email_addr">
+					<assign out="$from" value="$_pbx_auth_email_addr"/>
+				</if>
+				<if cond="$_pbx_auth_email_server">
+					<assign out="$server" value="$_pbx_auth_email_server"/>
+				</if>
+				<if cond="$_pbx_auth_email_usr">
+					<assign out="$user" value="$_pbx_auth_email_usr"/>
+				</if>
+				<if cond="$_pbx_auth_email_pwd">
+					<assign out="$password" value="$_pbx_auth_email_pwd"/>
+				</if>
+                
+                <!-- urlencode -->
+				<lib-enc type="url" string="$file" out-string="$file"/>
+                <lib-enc type="url" string="$user" out-string="$user"/>
+                <lib-enc type="url" string="$password" out-string="$password"/>
+
+				<!-- attach file -->
+                <assign out="$file" value="$attach_file"/>
+
+				<!--Now send the email-->
+                <assign out="$exec-err" value="0"/>
+				<exec url="mailto:$to?from=$from&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;usr=$user&amp;pwd=$password&amp;file=$file" out-error="$exec-err"/>
 				<if cond="$exec-err">
 					<!-- 2nd try -->
-					<exec url="mailto:$to?from=$to&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;pwd=$password&amp;file=$file"/>
+					<exec url="mailto:$to?from=$from&amp;subject=$subject&amp;body=$body&amp;srv=$server&amp;usr=$user&amp;pwd=$password&amp;file=$file"/>
 				</if>
-				
+
 				<store-del url="$attach_file"/>
 				<store-getnext root="Attachments" handle="$handle" out-url="$attach_file"/>
 			</while>

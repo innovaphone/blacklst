@@ -261,7 +261,7 @@
 	<store-cookie root="" name="MinIntExtLen.txt" out="$MinIntExtLen"/>
 	<store-cookie root="" name="MaxIntExtLen.txt" out="$MaxIntExtLen"/>
 
-	<store-cookie root="" name="PrefixIN.txt" out="$TrunkCode"/> <!-- retrieve Trunk prefix -->
+	<!-- <store-cookie root="" name="PrefixIN.txt" out="$TrunkCode"/> --> <!-- retrieve Trunk prefix (currently not used) -->
 	<store-cookie root="" name="Default_OK.txt" out="$DefDest"/>  <!-- retrieve default forwarding destination -->
 	<store-cookie root="" name="Default_BL.txt" out="$DiscDest"/>  <!-- retrieve default forwarding destination for blacklised calls -->
 	<store-cookie root="" name="Email_Code.txt" out="$emailcode"/> <!-- retrieve Email Code for Email service from Email_Code.txt-->
