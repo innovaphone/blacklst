@@ -37,13 +37,52 @@
 
 <!-- Verifies if the calling party composed a DDI number, if there is DDI the call is forwarded to that specific extension otherwise to the Default destination -->
  <function define="Verify_DDI">
- 	<pbx-finduser-e164 e164="$cdpn" out-cn="$DDI_user"/>
+ 	<pbx-finduser-e164 e164="$cdpn" out-cn="$DDI_user"/> <!-- Check if the DDI is an known object in PBX -->
+	 <dbg string="CDPN CN: " string2="$DDI_user"/>
  		<switch var="$DDI_user">
- 			<case equal="">
+ 			<case equal="">   <!-- Called Number is not an object in the PBX => block -->
+				<dbg string="Legit Caller calling Unknown Number/object in the PBX" string2=" => DefTrans!"/>
 				<call name="DefTrans" />
 			</case>
-			<case not-equal="">
-				<call name="DDI_Trans" />
+			<case not-equal=""> <!-- Called Number is an object in the PBX => go on --> 
+				<pbx-query-obj name="$DDI_user" type="user_type"  out="$DDI_usertype"/>
+				<switch var="$DDI_usertype">
+					<case equal="1"> <!-- User -->
+						<dbg string="Legit Caller calling allowed destination (user)" string2=" => DDI_Trans!"/>
+						<call name="DDI_Trans"/> 
+					</case>
+					<case equal="2"> <!-- No-User is Pseudo -->
+						<pbx-query-obj name="$DDI_user" type="pseudo_type"  out="$DDI_pseudotype"/>
+						<dbg string="CDPN Type: " string2="$DDI_pseudotype"/>
+						<switch var="$DDI_pseudotype">
+							<case equal="gw">
+								<dbg string="Legit Caller calling prohibited destination" string2=" => Disconnect!"/>
+								<pbx-disc cause="21"/>	
+							</case>
+							<case equal="trunk">     
+								<pbx-query-obj name="$DDI_user" type="e164" out="$DDI_user_e164" /> 
+								<switch var="$cdpn">
+									<case equal="$DDI_user_e164">
+										<dbg string="Legit Caller forwarded to main destination" string2=" => DefTrans!"/>
+										<call name="DefTrans"/>
+									</case>
+									<default>
+										<dbg string="Legit Caller calling prohibited destination" string2=" => Disconnect!"/>
+										<pbx-disc cause="21"/>
+									</default>
+								</switch>
+							</case>
+							<!--<case equal="vm"> 
+								<dbg string="Legit Caller calling prohibited destination" string2=" => Disconnect!"/>
+								<pbx-disc cause="21"/>
+							</case> Blocks Voicemail Objects from being called-->
+							<default>
+								<dbg string="Legit Caller calling allowed destination" string2=" => DDI_Trans!"/>
+								<call name="DDI_Trans"/> 
+							</default>
+						</switch>
+					</case>
+				</switch>
 			</case>
  		</switch>
  </function>
@@ -93,7 +132,6 @@
 	</switch>   
 
  </function>
-
 
  
 <!-- HANDLES BLACKLISTED CALLS -->
@@ -242,13 +280,9 @@
     </if>
 </function>
 
-
-
-
  <function define="Main">
   <!-- retrieve CGPN and CDPN -->
 	<pbx-getcallinfo out-cgpn="$cgpn" out-cdpn="$cdpn" out-leg2="$leg2" out-leg2-name="$leg2-name" />
- 
  <!-- check Language -->
 	<store-cookie root="" name="Language.txt" out="$Lang"/>
 	
@@ -275,6 +309,7 @@
 <!-- verify if CGPN is internal or external -->
 	<call name="CheckCGPN" />
 
+<!-- check if caller is trying to bypass trunk loopback to external -->
 	<switch var="$call_type">
 	<!-- if the CGPN is internal the caller has access to Black List menu options -->
 		<case equal="internal">
@@ -287,9 +322,10 @@
 			<call name="CheckBL" />
 		</case>
 	</switch>  	
-	<!-- if the caller is legit the call will be transfered to DDI or Default destination -->
+	<!-- if the (CDPN) caller is legit the call will be transfered to DDI or Default destination -->
 	<if cond="$legit_caller">
 		<call name="Verify_DDI" />
+
 	</if>
 </function> 
  
